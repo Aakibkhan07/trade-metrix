@@ -17,6 +17,7 @@ interface BrokerConnectFormProps {
 
 export function BrokerConnectForm({ brokerType, onSuccess, onCancel }: BrokerConnectFormProps) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [authMethod, setAuthMethod] = useState<'oauth' | 'api_key'>(
     brokerType === 'zerodha' ? 'oauth' : 'api_key'
   );
@@ -73,6 +74,7 @@ export function BrokerConnectForm({ brokerType, onSuccess, onCancel }: BrokerCon
   const handleApiKeyConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
     try {
       const response = await fetch('/api/brokers/connect', {
@@ -86,9 +88,17 @@ export function BrokerConnectForm({ brokerType, onSuccess, onCancel }: BrokerCon
       });
 
       const data = await response.json();
+      console.log('[v0] Broker connect response:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to connect broker');
+        const errorMsg = data.error || 'Failed to connect broker';
+        setError(errorMsg);
+        toast({
+          title: 'Error',
+          description: errorMsg,
+          variant: 'destructive',
+        });
+        return;
       }
 
       toast({
@@ -98,9 +108,11 @@ export function BrokerConnectForm({ brokerType, onSuccess, onCancel }: BrokerCon
 
       onSuccess();
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to connect';
+      setError(errorMsg);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to connect',
+        description: errorMsg,
         variant: 'destructive',
       });
     } finally {
@@ -208,49 +220,66 @@ export function BrokerConnectForm({ brokerType, onSuccess, onCancel }: BrokerCon
 
           <TabsContent value="api_key">
             <form onSubmit={handleApiKeyConnect} className="space-y-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm font-medium text-red-900">{error}</p>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm font-medium text-blue-900">
+                  Get your Angel One credentials from your developer dashboard
+                </p>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="userId">User ID / Client Code</Label>
+                <Label htmlFor="userId">Client Code</Label>
                 <Input
                   id="userId"
-                  placeholder="Enter your user ID"
+                  placeholder="e.g., A123456789"
                   value={credentials.userId}
                   onChange={(e) => setCredentials({ ...credentials, userId: e.target.value })}
                   required
                 />
+                <p className="text-xs text-muted-foreground">Your Angel One Client ID from the dashboard</p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="password">Password / PIN</Label>
+                <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Your Angel One password"
                   value={credentials.password}
                   onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                   required
                 />
+                <p className="text-xs text-muted-foreground">Your Angel One login password</p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="apiKey">API Key</Label>
+                <Label htmlFor="apiKey">Private Key</Label>
                 <Input
                   id="apiKey"
-                  placeholder="Enter your API key"
+                  type="password"
+                  placeholder="Your Private Key"
                   value={credentials.apiKey}
                   onChange={(e) => setCredentials({ ...credentials, apiKey: e.target.value })}
                   required
                 />
+                <p className="text-xs text-muted-foreground">Available in your Angel One API settings</p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="totpCode">TOTP / 2FA Code (if enabled)</Label>
+                <Label htmlFor="totpCode">TOTP Code (Optional)</Label>
                 <Input
                   id="totpCode"
-                  placeholder="Enter 6-digit code"
+                  placeholder="6-digit code if 2FA enabled"
                   value={credentials.totpCode}
                   onChange={(e) => setCredentials({ ...credentials, totpCode: e.target.value })}
                   maxLength={6}
                 />
+                <p className="text-xs text-muted-foreground">Leave blank if 2FA is not enabled</p>
               </div>
 
               <div className="flex gap-2 pt-2">
