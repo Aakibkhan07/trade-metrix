@@ -220,6 +220,10 @@ async function connectPaperTrading(supabase: any, userId: string) {
 // Angel One direct API authentication
 async function authenticateAngelOne(credentials: any): Promise<string> {
   try {
+    console.log('[v0] Authenticating with Angel One...');
+    console.log('[v0] Client code:', credentials.userId);
+    console.log('[v0] API Key present:', !!credentials.apiKey);
+    
     const response = await fetch('https://apiconnect.angelbroking.com/rest/auth/angelbroking/user/v1/loginByPassword', {
       method: 'POST',
       headers: {
@@ -239,19 +243,30 @@ async function authenticateAngelOne(credentials: any): Promise<string> {
     });
     
     const data = await response.json();
-    console.log('[v0] Angel One response:', data);
+    console.log('[v0] Angel One full response:', JSON.stringify(data, null, 2));
+    console.log('[v0] Angel One status code:', response.status);
     
-    if (!data.status || data.status !== 'success') {
-      throw new Error(data.message || 'Angel One authentication failed');
+    // Check different status indicators
+    if (data.status !== 'success' && data.status !== true && data.code !== 'SUCCESS') {
+      const errorMsg = data.message || data.msg || data.error || 'Angel One authentication failed';
+      console.log('[v0] Auth failed with message:', errorMsg);
+      throw new Error(errorMsg);
     }
     
-    if (!data.data?.jwtToken && !data.data?.authToken) {
-      throw new Error('No token received from Angel One - check credentials and API key');
+    const token = data.data?.jwtToken || data.data?.authToken || data.jwtToken || data.authToken;
+    
+    if (!token) {
+      console.log('[v0] No token in response. Response data:', data.data);
+      throw new Error('No authentication token received from Angel One. Check your credentials and API key.');
     }
     
-    return data.data.jwtToken || data.data.authToken;
+    console.log('[v0] Angel One auth successful!');
+    return token;
   } catch (error) {
     console.log('[v0] Angel One auth error:', error);
+    if (error instanceof Error) {
+      throw new Error(`Angel One Error: ${error.message}`);
+    }
     throw error;
   }
 }

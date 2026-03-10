@@ -219,12 +219,14 @@ export function BrokerConnectForm({ brokerType, onSuccess, onCancel }: BrokerCon
           </TabsList>
 
           <TabsContent value="api_key">
+            {error && (
+              <div className="bg-red-100 border-4 border-red-600 rounded-lg p-4 mb-4 text-center">
+                <p className="text-base font-bold text-red-800">⚠️ Connection Error</p>
+                <p className="text-sm text-red-700 mt-2 whitespace-pre-wrap break-words">{error}</p>
+              </div>
+            )}
+            
             <form onSubmit={handleApiKeyConnect} className="space-y-4">
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm font-medium text-red-900">{error}</p>
-                </div>
-              )}
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm font-medium text-blue-900">
