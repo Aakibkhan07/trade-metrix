@@ -8,24 +8,47 @@ export class AngelOneAdapter extends BaseBrokerAdapter {
   }
 
   async authenticate(credentials: BrokerCredentials): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: Date }> {
-    const authResponse = await fetch(`${this.baseUrl}/loginByPassword`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userid: credentials.userId,
-        password: credentials.password,
-        apikey: credentials.apiKey,
-      }),
-    });
+    try {
+      const authResponse = await fetch(`${this.baseUrl}/loginByPassword`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-PrivateKey': credentials.apiKey,
+          'X-ClientLocalIP': '127.0.0.1',
+          'X-ClientPublicIP': '127.0.0.1',
+          'X-MACAddress': '00:00:00:00:00:00',
+          'X-UserType': 'USER',
+          'X-SourceID': 'WEB',
+        },
+        body: JSON.stringify({
+          clientcode: credentials.userId,
+          password: credentials.password,
+          totp: credentials.totpCode || '',
+        }),
+      });
 
-    const data = await authResponse.json();
-    if (!data.status) throw new Error('Angel One authentication failed');
+      const data = await authResponse.json();
+      
+      if (!data.status || data.status !== 'success') {
+        console.log('[v0] Angel One auth failed:', data);
+        throw new Error(data.message || 'Angel One authentication failed');
+      }
 
-    this.accessToken = data.data.accesstoken;
-    return {
-      accessToken: data.data.accesstoken,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-    };
+      if (!data.data?.jwtToken && !data.data?.authToken) {
+        throw new Error('No authentication token received from Angel One');
+      }
+
+      const token = data.data.jwtToken || data.data.authToken;
+      this.accessToken = token;
+      
+      return {
+        accessToken: token,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
+    } catch (error) {
+      console.log('[v0] Angel One authentication error:', error);
+      throw error;
+    }
   }
 
   async refreshToken(refreshToken: string): Promise<{ accessToken: string; expiresAt?: Date }> {

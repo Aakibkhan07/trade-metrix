@@ -219,35 +219,41 @@ async function connectPaperTrading(supabase: any, userId: string) {
 
 // Angel One direct API authentication
 async function authenticateAngelOne(credentials: any): Promise<string> {
-  const response = await fetch('https://apiconnect.angelbroking.com/rest/auth/angelbroking/user/v1/loginByPassword', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-PrivateKey': credentials.apiKey,
-      'X-ClientLocalIP': '127.0.0.1',
-      'X-ClientPublicIP': '127.0.0.1',
-      'X-MACAddress': '00:00:00:00:00:00',
-      'X-UserType': 'USER',
-      'X-SourceID': 'WEB',
-    },
-    body: JSON.stringify({
-      clientcode: credentials.userId,
-      password: credentials.password,
-      totp: credentials.totpCode || '',
-    }),
-  });
-  
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.message || 'Angel One authentication failed');
+  try {
+    const response = await fetch('https://apiconnect.angelbroking.com/rest/auth/angelbroking/user/v1/loginByPassword', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-PrivateKey': credentials.apiKey,
+        'X-ClientLocalIP': '127.0.0.1',
+        'X-ClientPublicIP': '127.0.0.1',
+        'X-MACAddress': '00:00:00:00:00:00',
+        'X-UserType': 'USER',
+        'X-SourceID': 'WEB',
+      },
+      body: JSON.stringify({
+        clientcode: credentials.userId,
+        password: credentials.password,
+        totp: credentials.totpCode || '',
+      }),
+    });
+    
+    const data = await response.json();
+    console.log('[v0] Angel One response:', data);
+    
+    if (!data.status || data.status !== 'success') {
+      throw new Error(data.message || 'Angel One authentication failed');
+    }
+    
+    if (!data.data?.jwtToken && !data.data?.authToken) {
+      throw new Error('No token received from Angel One - check credentials and API key');
+    }
+    
+    return data.data.jwtToken || data.data.authToken;
+  } catch (error) {
+    console.log('[v0] Angel One auth error:', error);
+    throw error;
   }
-  
-  const data = await response.json();
-  if (!data.data?.jwtToken) {
-    throw new Error('No token received from Angel One');
-  }
-  
-  return data.data.jwtToken;
 }
 
 // Shoonya direct API authentication
